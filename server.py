@@ -2,7 +2,9 @@ import vk_api.vk_api
 import random
 import requests
 import vk
+import fb
 import json
+import config
 # import vk.py
 #import httplib2
 #from BeautifulSoup4 import BeautifulSoup, SoupStrainer
@@ -25,6 +27,7 @@ class Server:
     Photos = ['']
     Audios = ['']
     Docs = ['']
+    Videos = ['']
 
     def __init__(self, api_token, group_id, server_name: str="Empty"):
 
@@ -47,6 +50,14 @@ class Server:
         # Токен
         self.tok = ''
         self.isTok = False
+
+        # Токен facebook
+        self.fb_tok = ''
+        self.is_fb_tok = False
+
+        # Выбран fb/vk
+        self.is_fb = False
+        self.is_vk = False
      
         # Группа
         self.id_group = -1
@@ -93,6 +104,8 @@ class Server:
                         print("Audio's URL: " + self.get_audio_url(attachment['audio']))
                     if(attachment['type'] == 'doc'):
                         print("Doc's URL: " + self.get_doc_url(attachment['doc']))
+                    if(attachment['type'] == 'video'):
+                        print("Video's URL: " + self.get_video_url(attachment['video']))
                 print("Type: ", end="")
                 if event.object.id > 0:
                     print("private message")
@@ -102,9 +115,11 @@ class Server:
 
 
                 if(event.object.text == "пост в вконтакте"):
+                    self.is_vk = True
+                    self.is_fb = False
                     if(self.isTok == False):
                         message = f"{username}, пройди по ссылке и нажми \"принять\" \n https://oauth.vk.com/authorize?client_id=7214092&display=page&redirect_uri=http://api.vk.com/blank.html&scope=wall%2Cgroups%2Cfriends%2Cphotos&response_type=token&v=5.103"
-                        keyboard = open("C:/Users/User/Desktop/Vicky/MKP/bot_new/keyboards/none.json", "r", encoding="UTF-8").read()
+                        keyboard = open("keyboards/none.json", "r", encoding="UTF-8").read()
                         self.send_msg(peer_id, message, keyboard)
                         message = f"{username}, отправь токен из адресной строки."
                         self.send_msg(peer_id, message, keyboard)
@@ -112,7 +127,7 @@ class Server:
                     else:
                         print('tok is ok')
                         message = f"{username}, выбери, куда ты хочешь сделать пост."
-                        keyboard = open("C:/Users/User/Desktop/Vicky/MKP/bot_new/keyboards/posting_place.json", "r", encoding="UTF-8").read()
+                        keyboard = open("keyboards/posting_place.json", "r", encoding="UTF-8").read()
                         self.send_msg(peer_id, message, keyboard)
 
                     #http = httplib2.Http()
@@ -125,35 +140,54 @@ class Server:
                     #print(tok)
 
                 elif(event.object.text == "пост в фейсбук"):
-                    keyboard = open("C:/Users/User/Desktop/Vicky/MKP/bot_new/keyboards/posting_place.json", "r", encoding="UTF-8").read()
-                    self.send_msg(peer_id, self.users[event.object.from_id].input(event.object.text), keyboard)
+                    self.is_vk = False
+                    self.is_fb = True
+                    if(self.is_fb_tok == False):
+                        message = f"{username}, пройди по ссылке регистрации в facebook\n https://www.facebook.com/dialog/oauth?client_id=529762531091184&redirect_uri=https://www.facebook.com/connect/login_success.html&scope=manage_pages,publish_pages&response_type=token&enable_profile_selector=1&profile_selector_ids=pageid"
+                        keyboard = open("keyboards/none.json", "r", encoding="UTF-8").read()
+                        self.send_msg(peer_id, message, keyboard)
+                        message = f"{username}, После регистрации успей отправить нам адрес страницы."
+                        self.send_msg(peer_id, message, keyboard)
+                    else:
+                        print('fb_tok is ok' )
+                        keyboard = open("keyboards/posting_place.json", "r", encoding="UTF-8").read()
+                        self.send_msg(peer_id, self.users[event.object.from_id].input(event.object.text), keyboard)
 
                 elif (event.object.text == "привет" or event.object.text == "ghbdtn"):
-                    keyboard = open("C:/Users/User/Desktop/Vicky/MKP/bot_new/keyboards/default.json", "r", encoding="UTF-8").read()
+                    keyboard = open("keyboards/default.json", "r", encoding="UTF-8").read()
                     self.send_msg(peer_id, self.users[event.object.from_id].input(event.object.text), keyboard)
                     print(self.id_user)
 
+                elif (event.object.text == "назад"):
+                    keyboard = open("keyboards/default.json", "r", encoding="UTF-8").read()
+                    self.send_msg(peer_id, self.users[event.object.from_id].input(event.object.text), keyboard)
+                    print(self.id_user)
 
                 elif (event.object.text == "пост на стену"):
-                    r = self.make_post_to_user(self.id_user)
-                    print(r)
-                    message = f"{r}"
-                    keyboard = open("C:/Users/User/Desktop/Vicky/MKP/bot_new/keyboards/default.json", "r", encoding="UTF-8").read()
-                    self.send_msg(peer_id, message, keyboard)
+                    if(self.is_vk == True):
+                        r = self.make_post_to_user(self.id_user)
+                        print(r)
+                        message = f"{r}"
+                        keyboard = open("keyboards/default.json", "r", encoding="UTF-8").read()
+                        self.send_msg(peer_id, message, keyboard)
 
 
                 elif(event.object.text == "пост в группу"):
-                    keyboard = open("C:/Users/User/Desktop/Vicky/MKP/bot_new/keyboards/none.json", "r", encoding="UTF-8").read()
+                    keyboard = open("keyboards/none.json", "r", encoding="UTF-8").read()
                     message = f"{username}, выбери группы, в которые хочешь разместить пост: перечисли цифры нужных сообществ из списка через пробел.\nПример: пост 1"
                     self.send_msg(peer_id, message, keyboard)
 
-                    grs = self.take_groups()
-                    print(grs[0], grs[1], grs[2])
-                    self.send_msg(peer_id, grs[2], keyboard)
-
+                    if(self.is_vk == True):
+                        grs = self.take_groups()
+                        print(grs[0], grs[1], grs[2], grs[3])
+                        self.send_msg(peer_id, grs[3], keyboard)
+                    elif(self.is_fb):
+                        grs = self.fb_get_groups()
+                        print(grs[0], grs[1], grs[2], grs[3])
+                        self.send_msg(peer_id, grs[3], keyboard)
 
                 elif(event.object.text == "показать последние"):
-                    keyboard = open("C:/Users/User/Desktop/Vicky/MKP/bot_new/keyboards/none.json", "r", encoding="UTF-8").read()
+                    keyboard = open("keyboards/none.json", "r", encoding="UTF-8").read()
                     message = f"{username}, выбери группы, в которых хочешь увидеть последние посты: перечисли цифры нужных сообществ из списка через пробел.\nПример: посл 1"
                     self.send_msg(peer_id, message, keyboard)
 
@@ -162,7 +196,7 @@ class Server:
                     self.send_msg(peer_id, grs[2], keyboard)
 
 
-                elif(event.object.text[3] == "л"):          # последние
+                elif(len(event.object.text) >= 6 and event.object.text[3] == "л"):          # последние
                     num = int(event.object.text[5:]) - 1
                     print(num)
                     grs = self.take_groups()
@@ -171,11 +205,11 @@ class Server:
                     data = self.take_posts(id_gr, 1)
                     print(data)
                     message = f"{data}"
-                    keyboard = open("C:/Users/User/Desktop/Vicky/MKP/bot_new/keyboards/default.json", "r", encoding="UTF-8").read()
+                    keyboard = open("keyboards/default.json", "r", encoding="UTF-8").read()
                     self.send_msg(peer_id, message, keyboard)
 
 
-                elif (event.object.text[3] == "т"):  # сделать пост
+                elif (len(event.object.text) >= 6 and event.object.text[3] == "т"):  # сделать пост
                     num = int(event.object.text[5:]) - 1
                     print(num)
                     grs = self.take_groups()
@@ -185,15 +219,27 @@ class Server:
                     r = self.make_post(id_gr)
                     print(r)
                     message = f"{r}"
-                    keyboard = open("C:/Users/User/Desktop/Vicky/MKP/bot_new/keyboards/default.json", "r", encoding="UTF-8").read()
+                    keyboard = open("keyboards/default.json", "r", encoding="UTF-8").read()
                     self.send_msg(peer_id, message, keyboard)
 
 
                 else:
-                    self.tok = event.object.text
-                    self.isTok = True
-                    keyboard = open("C:/Users/User/Desktop/Vicky/MKP/bot_new/keyboards/posting_place.json", "r", encoding="UTF-8").read()
-                    self.send_msg(peer_id, self.users[event.object.from_id].input(event.object.text), keyboard)
+                    if (self.is_vk == True):
+                        self.tok = event.object.text
+                        self.isTok = True
+                        keyboard = open("keyboards/posting_place.json", "r", encoding="UTF-8").read()
+                        # self.send_msg(peer_id, self.users[event.object.from_id].input(event.object.text), keyboard)
+                        self.send_msg(peer_id, 'Токен получен', keyboard)
+                    elif (self.is_fb == True):
+                        self.fb_tok = event.object.text
+                        self.is_fb_tok = True
+                        keyboard = open("keyboards/posting_place.json", "r", encoding="UTF-8").read()
+                        # self.send_msg(peer_id, self.users[event.object.from_id].input(event.object.text), keyboard)
+                        self.send_msg(peer_id, 'Токен получен', keyboard)
+                    else:
+                        keyboard = open("keyboards/none.json", "r", encoding="UTF-8").read()
+                        #self.send_msg(peer_id, self.users[event.object.from_id].input(event.object.text), keyboard)
+                        self.send_msg(peer_id, self.users[event.object.from_id].input(event.object.text), keyboard)
 
 
 
@@ -233,6 +279,12 @@ class Server:
         dc = doc['url']
         self.Docs.append(dc)
         return dc
+
+    def get_video_url(self, video):
+        """ Получаем прикрепленный документ"""
+        vd = video['url']
+        self.Videos.append(vd)
+        return vd
 
 
 # ***************************************************************************
@@ -339,12 +391,89 @@ class Server:
         ids = []
         names = []
         cnt = grs['response']['count']
+        str_names = ""
 
         for i in range(cnt):
-            numbs.append(i+1)
+            numbs.append(i + 1)
             ids.append(grs['response']['items'][i]['id'])
-            names.append(grs['response']['items'][i]['name'])
+            name = (i + 1).__str__() + " " + grs['response']['items'][i]['name'] + "\n"
+            names.append(name)
+            str_names += name
 
-        data = [numbs, ids, names]
+        str_names = str_names[:-1]
+        data = [numbs, ids, names, str_names]
 
         return data
+
+    #################### facebook
+    #Достает токен из строки URL, которую нам дал пользователь
+    def get_token_from_url(self, url):
+        url = re.search("(?P<url>access_token=[\w]+)", url).group("url")
+        url = url.split('=')[1]
+        print(url)
+        return url
+
+    #Возвраает список групп, где пользователь - админ
+    def fb_get_groups(self):
+        r = requests.get(
+            "https://graph.facebook.com/v5.0/me?fields=id,groups{administrator}&access_token=" + self.fb_tok)#EAAHh0PN7IvABANYp4AGZACdSGGI0OiiQC0UFA8BYvl6q0LaLZBg22aFRXlUpXTmF0rBkf5RxAZCCLqCZCEp2ZB8E0n3ZCsbH6NZAZCNAMriefcZBsNuIPkydOk8txTrhUsBTw7ZBVZAs4vGOOankNWkwOnY5hmsM7bRYr8ZD")
+        # print(r.json()['groups'])
+        r = r.json()['groups']['data']
+        print(r)
+
+        numbs = []
+        ids = []
+        names = []
+        str_names = ""
+
+        for i in r:
+            if (ind['administrator'] == True):
+                numbs.append(i + 1)
+                ids.append(r[i]['id'])
+                name = (i + 1).__str__() + " " + r[i]['name'] + "\n"
+                names.append(name)
+                str_names += name
+
+        str_names = str_names[:-1]
+        data = [numbs, ids, names, str_names]
+
+        return data
+
+    '''def auth(self):
+        fb_auth_redirect_url2 = "https://www.facebook.com/dialog/oauth?client_id=529762531091184&redirect_uri=https://www.facebook.com/connect/login_success.html&scope=manage_pages,publish_pages&response_type=token&enable_profile_selector=1&profile_selector_ids=pageid"
+        fb_auth_redirect_url2 = "https://www.facebook.com/dialog/oauth?client_id="+fb_app_id+"529762531091184&redirect_uri="+fb_redirect_uri+"&scope=manage_pages,publish_pages&response_type=token&enable_profile_selector=1&profile_selector_ids=pageid"
+        x1 = webbrowser.open(fb_auth_redirect_url2, new=0, autoraise=False)
+        tttoken = 'EAAHh0PN7IvABAHY3tRpZCbsZA38IFx504PLiZBjGP3DeXvKd18MkhKLpnhRy4POv9LBt2WrkZBMfnG3LZCKwfZC2G48P6ktk2ciKXODpqquaTxYlmfd0EYSxu7WO83x7wGC0cbqpjnZCHeBukH1CtunTPwWxVlvOCc4NZC200aYhvAlYESwgB8UQce3ruDjeGVgZD'
+        tttoken = 'EAAHh0PN7IvABAD0AbFYZAdsMZAB8RRqWIT1LrJ5iy1Yc1MZAS8h9kZCzLOizFZAmpZAOlBTZA9HU9IZADCrFuPjyin2o3LIdmvumiIdwG2qsvKA7r9hZBTvUGjmyVj3NQ0SzTwfx6orNizNndA5FEE6Vriyq2ua5PHJAGSBb6tZAnkg4zRQSRZB05jp2pfKXGW5Re8ZD'
+        print(tttoken)
+        l_token = requests.get(
+            "https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=" + fb_app_id + "&client_secret=" + fb_secret + "&fb_exchange_token=" + tttoken)
+        print(l_token.json()['access_token'])
+        print(x1)'''
+
+    #Получает короткий токен и возвращает длинный (90 дней)
+    def get_fb_long_token(self, s_token):
+        l_token = requests.get(
+            "https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=" + config.fb_app_id + "&client_secret=" + config.fb_secret + "&fb_exchange_token=" + s_token)
+        print("facebook long token: ",l_token.json()['access_token'])
+        return l_token.json()['access_token']
+
+    def fb_post_photo(self, photo, text, group):
+        # photo = 'https://sun9-21.userapi.com/c849532/v849532916/193b25/qd2H-t58ywo.jpg'
+        #token = 'EAAHh0PN7IvABAMpZBIW3VbPGsP2i4ukDP8H7SOSKR3PnLz0z0fTDxggnyodLYsUJAIp3i3FEI92xVbIES6OCB47WCxjvcUfCaCUcXbLH7GlCT9sAS78md2ShhdgjbX0iDyA7hM32M19zGKQTX0H4Lfz04YoVyDoK2IOEChwZDZD'
+        data = [
+            ('url', photo),
+            ('caption', text),
+            ('access_token', self.fb_tok),
+        ]
+        # fb = requests.post('https://graph.facebook.com/985618928451302/photos', data=data)  # ITS WORK!!!
+        fb = requests.post('https://graph.facebook.com/'+group+'/photos', data=data)
+        print(fb.text)
+
+    def fb_post_video(self, video, text, group):
+        graph = facebook.GraphAPI(access_token=self.fb_tok, version="2.12")
+        print(graph.put_object(
+            parent_object=group,
+            connection_name='feed',
+            message=text,
+            link=video))
