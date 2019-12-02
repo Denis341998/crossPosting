@@ -1,0 +1,33 @@
+{
+  "one_time": false,
+  "buttons": [
+    [{
+      "action": {
+        "type": "text",
+        "label": "пост на стену"
+      },
+      "color": "positive"
+    },
+      {
+        "action": {
+          "type": "text",
+          "label": "пост в группу"
+        },
+        "color": "positive"
+      }],
+    [{
+      "action": {
+        "type": "text",
+        "label": "назад"
+      },
+      "color": "default"
+    },
+	{
+      "action": {
+        "type": "text",
+        "label": "показать последние"
+      },
+      "color": "default"
+    }]
+  ]
+}

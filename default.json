@@ -1,0 +1,19 @@
+{
+  "one_time": false,
+  "buttons": [
+    [{
+      "action": {
+        "type": "text",
+        "label": "пост в фейсбук"
+      },
+      "color": "primary"
+    },
+      {
+        "action": {
+          "type": "text",
+          "label": "пост в вконтакте"
+        },
+        "color": "primary"
+      }]
+  ]
+}
