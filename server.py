@@ -5,6 +5,9 @@ import vk
 import fb
 import json
 import config
+import re
+import pymysql
+
 # import vk.py
 #import httplib2
 #from BeautifulSoup4 import BeautifulSoup, SoupStrainer
@@ -83,6 +86,9 @@ class Server:
         for event in self.long_poll.listen():   # Слушаем сервер
            #print(event)
 
+            con = pymysql.connect('localhost', 'root', 'Alibet201234', 'crossposting')
+
+
             if event.object.from_id not in self.users:
                 self.users[event.object.from_id] = Commander()
 
@@ -117,12 +123,26 @@ class Server:
                 if(event.object.text == "пост в вконтакте"):
                     self.is_vk = True
                     self.is_fb = False
+
                     if(self.isTok == False):
-                        message = f"{username}, пройди по ссылке и нажми \"принять\" \n https://oauth.vk.com/authorize?client_id=7214092&display=page&redirect_uri=http://api.vk.com/blank.html&scope=wall%2Cgroups%2Cfriends%2Cphotos&response_type=token&v=5.103"
-                        keyboard = open("keyboards/none.json", "r", encoding="UTF-8").read()
-                        self.send_msg(peer_id, message, keyboard)
-                        message = f"{username}, отправь токен из адресной строки."
-                        self.send_msg(peer_id, message, keyboard)
+                        cur.execute("SELECT token FROM sites "
+                                    "INNER JOIN user_site ON user_site.site_id = sites.site_id "
+                                    "INNER JOIN users ON users.user_id = user_site.users_id ")
+                        token = cur.fetchone()
+                        token = token[0]
+                        if (token):
+                            print(token)
+                            self.tok = token
+                            keyboard = open("keyboards/posting_place.json", "r", encoding="UTF-8").read()
+                            self.send_msg(peer_id, 'С возвращением!', keyboard)
+                        else:
+                            print(token)
+
+                            message = f"{username}, пройди по ссылке и нажми \"принять\" \n https://oauth.vk.com/authorize?client_id=7214092&display=page&redirect_uri=http://api.vk.com/blank.html&scope=wall%2Cgroups%2Cfriends%2Cphotos&response_type=token&v=5.103"
+                            keyboard = open("keyboards/none.json", "r", encoding="UTF-8").read()
+                            self.send_msg(peer_id, message, keyboard)
+                            message = f"{username}, отправь токен из адресной строки (от 'access_token=' до '&expires_in')."
+                            self.send_msg(peer_id, message, keyboard)
 
                     else:
                         print('tok is ok')
@@ -143,17 +163,31 @@ class Server:
                     self.is_vk = False
                     self.is_fb = True
                     if(self.is_fb_tok == False):
-                        message = f"{username}, пройди по ссылке регистрации в facebook\n https://www.facebook.com/dialog/oauth?client_id=529762531091184&redirect_uri=https://www.facebook.com/connect/login_success.html&scope=manage_pages,publish_pages&response_type=token&enable_profile_selector=1&profile_selector_ids=pageid"
-                        keyboard = open("keyboards/none.json", "r", encoding="UTF-8").read()
-                        self.send_msg(peer_id, message, keyboard)
-                        message = f"{username}, После регистрации успей отправить нам адрес страницы."
-                        self.send_msg(peer_id, message, keyboard)
+                        with con:
+                            cur = con.cursor()
+                            cur.execute("SELECT token FROM sites "
+                                        "INNER JOIN user_site ON user_site.site_id = sites.site_id "
+                                        "INNER JOIN users ON users.user_id = user_site.users_id ")
+                            token = cur.fetchone()
+                            token = token[0]
+                        if (token):
+                            print(token)
+                            self.fb_tok = token
+                            keyboard = open("keyboards/posting_place.json", "r", encoding="UTF-8").read()
+                            self.send_msg(peer_id, 'С возвращением!', keyboard)
+                        else:
+                            print(token)
+                            message = f"{username}, пройди по ссылке регистрации в facebook\n https://www.facebook.com/dialog/oauth?client_id=529762531091184&redirect_uri=https://www.facebook.com/connect/login_success.html&scope=manage_pages,publish_pages&response_type=token&enable_profile_selector=1&profile_selector_ids=pageid"
+                            keyboard = open("keyboards/none.json", "r", encoding="UTF-8").read()
+                            self.send_msg(peer_id, message, keyboard)
+                            message = f"{username}, После регистрации успей отправить нам адрес страницы."
+                            self.send_msg(peer_id, message, keyboard)
                     else:
                         print('fb_tok is ok' )
                         keyboard = open("keyboards/posting_place.json", "r", encoding="UTF-8").read()
                         self.send_msg(peer_id, self.users[event.object.from_id].input(event.object.text), keyboard)
 
-                elif (event.object.text == "привет" or event.object.text == "ghbdtn"):
+                elif (event.object.text == "привет" or event.object.text == "Привет" or event.object.text == "ghbdtn" or event.object.text == "Ghbdtn"):
                     keyboard = open("keyboards/default.json", "r", encoding="UTF-8").read()
                     self.send_msg(peer_id, self.users[event.object.from_id].input(event.object.text), keyboard)
                     print(self.id_user)
@@ -187,13 +221,15 @@ class Server:
                         self.send_msg(peer_id, grs[3], keyboard)
 
                 elif(event.object.text == "показать последние"):
+
                     keyboard = open("keyboards/none.json", "r", encoding="UTF-8").read()
                     message = f"{username}, выбери группы, в которых хочешь увидеть последние посты: перечисли цифры нужных сообществ из списка через пробел.\nПример: посл 1"
                     self.send_msg(peer_id, message, keyboard)
 
-                    grs = self.take_groups()
-                    print(grs[0], grs[1], grs[2])
-                    self.send_msg(peer_id, grs[2], keyboard)
+                    if (self.is_vk == True):
+                        grs = self.take_groups()
+                        print(grs[0], grs[1], grs[2])
+                        self.send_msg(peer_id, grs[2], keyboard)
 
 
                 elif(len(event.object.text) >= 6 and event.object.text[3] == "л"):          # последние
@@ -212,12 +248,18 @@ class Server:
                 elif (len(event.object.text) >= 6 and event.object.text[3] == "т"):  # сделать пост
                     num = int(event.object.text[5:]) - 1
                     print(num)
-                    grs = self.take_groups()
-                    id_gr = grs[1][num]
+                    if(self.is_vk):
+                        grs = self.take_groups()
+                        id_gr = grs[1][num]
 
-                    # r = self.make_post_with_photo(id_gr, 'C:/Users/User/Desktop/Vicky/MKP/bot_new/1.jpg')
-                    r = self.make_post(id_gr)
-                    print(r)
+                        # r = self.make_post_with_photo(id_gr, 'C:/Users/User/Desktop/Vicky/MKP/bot_new/1.jpg')
+                        r = self.make_post(id_gr)
+                        print(r)
+                    elif(self.is_fb):
+                        grs = self.fb_get_groups()
+                        id_gr = grs[1][num]
+                        r = self.fb_post_photo(config.photo_url,event.object.text,id_gr)
+
                     message = f"{r}"
                     keyboard = open("keyboards/default.json", "r", encoding="UTF-8").read()
                     self.send_msg(peer_id, message, keyboard)
@@ -230,12 +272,30 @@ class Server:
                         keyboard = open("keyboards/posting_place.json", "r", encoding="UTF-8").read()
                         # self.send_msg(peer_id, self.users[event.object.from_id].input(event.object.text), keyboard)
                         self.send_msg(peer_id, 'Токен получен', keyboard)
+                        rand = random_id()
+                        with con:
+                            cur = con.cursor()
+                            cur.execute("INSERT INTO sites (site_id, login, password, token, name, address) VALUES (%s, %s, %s, %s, %s, %s)", [rand, '', '', self.tok, '', ''])
+                            cur.execute("INSERT INTO users (user_id, first_name, last_name, picture) VALUES (%s, %s, %s, %s)",
+                                [event.object.from_id, "", "", ""])
+                            cur.execute("INSERT INTO user_site (users_id, site_id) VALUES (%s, %s)", [event.object.from_id, rand])
+
+
                     elif (self.is_fb == True):
                         self.fb_tok = event.object.text
+                        self.fb_tok = self.get_token_from_url(self.fb_tok)
                         self.is_fb_tok = True
                         keyboard = open("keyboards/posting_place.json", "r", encoding="UTF-8").read()
                         # self.send_msg(peer_id, self.users[event.object.from_id].input(event.object.text), keyboard)
                         self.send_msg(peer_id, 'Токен получен', keyboard)
+                        rand = random_id()
+                        with con:
+                            cur = con.cursor()
+                            cur.execute("INSERT INTO sites (site_id, login, password, token, name, address) VALUES (%s, %s, %s, %s, %s, %s)", [rand, '', '', self.fb_tok, '', ''])
+                            cur.execute("INSERT INTO users (user_id, first_name, last_name, picture) VALUES (%s, %s, %s, %s)",
+                                [event.object.from_id, "", "", ""])
+                            cur.execute("INSERT INTO user_site (users_id, site_id) VALUES (%s, %s)", [event.object.from_id, rand])
+
                     else:
                         keyboard = open("keyboards/none.json", "r", encoding="UTF-8").read()
                         #self.send_msg(peer_id, self.users[event.object.from_id].input(event.object.text), keyboard)
@@ -416,7 +476,8 @@ class Server:
     #Возвраает список групп, где пользователь - админ
     def fb_get_groups(self):
         r = requests.get(
-            "https://graph.facebook.com/v5.0/me?fields=id,groups{administrator}&access_token=" + self.fb_tok)#EAAHh0PN7IvABANYp4AGZACdSGGI0OiiQC0UFA8BYvl6q0LaLZBg22aFRXlUpXTmF0rBkf5RxAZCCLqCZCEp2ZB8E0n3ZCsbH6NZAZCNAMriefcZBsNuIPkydOk8txTrhUsBTw7ZBVZAs4vGOOankNWkwOnY5hmsM7bRYr8ZD")
+            "https://graph.facebook.com/v5.0/me?fields=groups{administrator,id,name}&access_token=" + self.fb_tok)#EAAHh0PN7IvABANYp4AGZACdSGGI0OiiQC0UFA8BYvl6q0LaLZBg22aFRXlUpXTmF0rBkf5RxAZCCLqCZCEp2ZB8E0n3ZCsbH6NZAZCNAMriefcZBsNuIPkydOk8txTrhUsBTw7ZBVZAs4vGOOankNWkwOnY5hmsM7bRYr8ZD")
+        print(r.json())
         # print(r.json()['groups'])
         r = r.json()['groups']['data']
         print(r)
@@ -425,14 +486,16 @@ class Server:
         ids = []
         names = []
         str_names = ""
-
+        name = ""
+        ind = 0
         for i in r:
-            if (ind['administrator'] == True):
-                numbs.append(i + 1)
-                ids.append(r[i]['id'])
-                name = (i + 1).__str__() + " " + r[i]['name'] + "\n"
+            if (i['administrator'] == True):
+                numbs.append(ind + 1)
+                print(ids.append(i['id']))
+                name = (ind + 1).__str__() + " " + i['name'] + "\n"
                 names.append(name)
                 str_names += name
+                ind=ind+1
 
         str_names = str_names[:-1]
         data = [numbs, ids, names, str_names]
