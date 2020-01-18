@@ -3,10 +3,10 @@ from enum import Enum
 
 class Command(Enum):
     """ приветствие """
-    hello = ["Привет!", "привет", "Привет", "ghbdtn"]
+    hello = ["Привет", "привет", "Ghbdtn", "ghbdtn", "Hi", "hi", "Рш", "рш"]
 
     """ fb """
-    facebook = ["fb", "facebook", "пост в фейсбук"]
+    facebook = ["facebook", "пост в фейсбук"]
 
     """ vk """
     vk = ["vk", "пост в вконтакте"]
